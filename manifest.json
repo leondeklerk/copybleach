@@ -1,0 +1,22 @@
+{
+	"manifest_version": 3,
+	"name": "Clipboard Modifier",
+	"version": "1.0",
+	"description": "A Chrome extension to modify clipboard content on paste.",
+	"permissions": ["clipboardRead", "clipboardWrite", "scripting", "activeTab"],
+	"background": {
+		"service_worker": "background.js"
+	},
+	"commands": {
+		"run-bleach": {
+			"suggested_key": {
+				"default": "Ctrl+Shift+V",
+				"mac": "Command+V"
+			},
+			"description": "Run \"bleach\" on the current page."
+		}
+	},
+	"action": {
+		"default_popup": "popup.html"
+	}
+}
