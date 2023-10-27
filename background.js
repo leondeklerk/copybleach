@@ -1,10 +1,8 @@
-chrome.commands.onCommand.addListener(async (command) => {
-	console.log(`Command: ${command}`);
-	// document.execCommand("insertText", false, "true");
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+	if (changeInfo.status !== "complete") {
+		return;
+	}
 
-	const tab = await getCurrentTab();
-	if (!tab) return;
-	// console.log(document);
 	chrome.scripting.executeScript({
 		target: { tabId: tab.id },
 		func: contentScriptFunc,
@@ -18,36 +16,55 @@ async function getCurrentTab() {
 	return tab;
 }
 
-function contentScriptFunc(name) {
-	document.addEventListener("paste", (e) => {
-		e.preventDefault();
-		navigator.clipboard.writeText("test");
-		navigator.clipboard.dispatchEvent("paste");
-		// const data = e.clipboardData.getData("text/plain");
-		// console.log(data);
-		// const modifiedData = "new value";
-		// document.execCommand("paste");
+function contentScriptFunc() {
+	let block = true;
+
+	document.addEventListener("paste", async (e) => {
+		if (block) {
+			e.stopPropagation();
+			e.stopImmediatePropagation();
+			e.preventDefault();
+			block = false;
+
+			const items = [];
+
+			const records = {};
+			for (let type of e.clipboardData.types) {
+				if (type === "Files") {
+					continue;
+				}
+				switch (type) {
+					case "text/html":
+						const data = e.clipboardData.getData(type);
+						const result = data.replace(
+							/((background\-color)|(color)):\s#[0-9a-f]{6};*/g,
+							""
+						);
+						records[type] = new Blob([result], { type });
+						break;
+					case "text/plain":
+					case "image/png":
+						records[type] = new Blob([e.clipboardData.getData(type)], { type });
+						break;
+					default:
+						const startType = type;
+						type = `web ${type}`;
+						records[type] = new Blob([e.clipboardData.getData(startType)], {
+							type,
+						});
+				}
+			}
+
+			if (Object.keys(records).length !== 0) {
+				items.push(new ClipboardItem(records));
+			}
+
+			if (items.length > 0) {
+				await navigator.clipboard.write(items);
+			}
+			document.execCommand("paste", false);
+		} else {
+			block = true;
+		}
 	});
-	// document.addEventListener("paste", )
-	console.log("test", navigator);
 }
-
-// chrome.action.onClicked.addListener(function (tab) {
-// 	chrome.scripting.executeScript({
-// 		target: { tabId: tab.id },
-// 		function: enableClipboardModification,
-// 	});
-// });
-
-// function enableClipboardModification() {
-// 	console.log("enabled");
-// 	document.addEventListener("paste", function (event) {
-// 		console.log("paste", data);
-// 		event.preventDefault();
-// 		const clipboardData = event.clipboardData.getData("text/plain");
-// 		console.log(" data", clipboardData);
-// 		// Modify the clipboard data as needed
-// 		const modifiedData = clipboardData.replace(/old_value/g, "new_value");
-// 		document.execCommand("insertText", false, modifiedData);
-// 	});
-// }
